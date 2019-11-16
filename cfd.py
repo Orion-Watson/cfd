@@ -2,6 +2,8 @@ import numpy as np
 
 
 def make_superindexed(L): #Only use L as multiple of 8
+    if((L%8) != 0):
+        raise Exception("L not a nultiple of 8!")
     n = (L+1)**2
     A = np.zeros((n, n))
     b = np.zeros(n)
