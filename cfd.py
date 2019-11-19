@@ -1,11 +1,14 @@
 import numpy as np
 
 class Flow:
-    def __init__(X,Y,L):
+    def __init__(X,Y,PlateY,L):
         self.L = L
         #length of the surface in x direction
         self.X = X
         #length of the surface in y direction
+        self.PlateXFront = .25
+        self.PlateXBack = .375
+        self.PlateYTop = .25
         self.Y = Y
         self.W = np.zeros((L+1,L+1))
         self.Psi = np.zeros((L+1,L+1))
@@ -47,22 +50,34 @@ class Flow:
         print()
 
     def updateWInternal(self):
-        for x in range(1,L+1):
-            for y in range(1,L+1):
-                psiStencil = self.PsiStencil(x,y)
-                if w != False:
-                    self.W[x,y] = psiStencil
+        for l in range(1,L+1):
+            for j in range(1,L+1):
+                if self.inPlate(l,j):
+                    psiStencil = self.PsiStencil(l,j)
+                    if w != False:
+                        self.W[l,j] = psiStencil
+                else:
+                    self.W[l,j] = 0
 
     def updateWBoundary(self):
         print()
 
-    def PsiStencil(self,x,y):
-        if x != 0 and y != 0 and x !=  (self.L +1) and y != (self.L +1):
-            Psi = self.Psi[x,y]
-            stencil = -4*Psi + self.Psi[x+1,y] + self.Psi[x-1,y] + self.Psi[x,y+1]+ self.Psi[x,y-1]
+    def PsiStencil(self,l,j):
+        if l != 0 and j != 0 and l !=  (self.L +1) and j != (self.L +1):
+            Psi = self.Psi[l,j]
+            stencil = -4*Psi + self.Psi[l+1,j] + self.Psi[l-1,j] + self.Psi[l,j+1]+ self.Psi[l,j-1]
             return stencil
         else:
             return False
+
+    def inPlate(self,l,j):
+        normalizedDistanceFromFront = self.PlateXFront / self.X
+        normalizedDistanceOfBack = (self.X - self.PlateXBack)/ self.X
+        if normalizedDistanceFromFront > (l / self.L) and normalizedDistanceOfBack > (l / self.L):
+            normalizedDistanceOfTop = (self.Y - self.PlateYTop)/ self.Y
+            if (j / self.J) < normalizedDistanceOfTop:
+                return True
+        return False
 
     def make_superindexed(L): #Only use L as multiple of 8
         if((L%8) != 0):
