@@ -2,6 +2,7 @@ import numpy as np
 
 class Flow:
     def __init__(X,Y,L):
+        self.L = L
         #length of the surface in x direction
         self.X = X
         #length of the surface in y direction
@@ -29,10 +30,36 @@ class Flow:
                 self.updateW()
 
     def updatePsi(self):
-        print()
+        self.updatePsiInternal()
+        self.updatePsiBoundary()
 
     def updateW(self):
+        self.updateWInternal()
+        self.updateWBoundary()
+
+    def updatePsiInternal(self):
         print()
+
+    def updatePsiBoundary(self):
+        print()
+
+    def updateWInternal(self):
+        for x in range(1,L+1):
+            for y in range(1,L+1):
+                psiStencil = self.PsiStencil(x,y)
+                if w != False:
+                    self.W[x,y] = psiStencil
+
+    def updateWBoundary(self):
+        print()
+
+    def PsiStencil(self,x,y):
+        if x != 0 and y != 0 and x !=  (self.L +1) and y != (self.L +1):
+            Psi = self.Psi[x,y]
+            stencil = -4*Psi + self.Psi[x+1,y] + self.Psi[x-1,y] + self.Psi[x,y+1]+ self.Psi[x,y-1]
+            return stencil
+        else:
+            return False
 
     def make_superindexed(L): #Only use L as multiple of 8
         if((L%8) != 0):
