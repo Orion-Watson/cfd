@@ -28,6 +28,7 @@ class Flow:
                 self.updatePsi()
             else:
                 self.updateW()
+            self.updatePsi = !self.updatePsi
 
     def updatePsi(self):
         self.updatePsiInternal()
