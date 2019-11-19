@@ -17,7 +17,9 @@ class Flow:
         self.freeFlowInit()
 
     def freeFlowInit(self):
+        #initialize all vorticities as 0
         self.W = np.zeros((L+1,L+1))
+        """TODO: need to figure out how we should initialize PSI """
         self.Psi = np.zeros((L+1,L+1))
 
     def solve(self):
