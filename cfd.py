@@ -1,7 +1,8 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 class Flow:
-    def __init__(X,Y,PlateY,L):
+    def __init__(self, X, Y, L):
         self.L = L
         #length of the surface in x direction
         self.X = X
@@ -16,22 +17,41 @@ class Flow:
         self.plateTop = self.PlateYTop/self.Y
         self.W = np.zeros((L+1,L+1))
         self.Psi = np.zeros((L+1,L+1))
+        self.h = self.X/self.Y
         #indicates wheather Psi or W should be updated
         self.updatePsi = True
         self.solutionFound = False
+
+    def inPlate(self, l, j):
+        front = l/(self.L+1) > self.plateFront
+        back = l/(self.L+1) < self.plateBack
+        top = j/(self.L+1) < self.plateTop
+        return (front and back and top)
+
+
+
+    """def inPlate(self,l,j):
+        normalizedDistanceFromFront = self.PlateXFront / self.X
+        normalizedDistanceOfBack = (self.X - self.PlateXBack)/ self.X
+        if (normalizedDistanceFromFront > (l / self.L)) and (normalizedDistanceOfBack > (l / self.L)):
+            normalizedDistanceOfTop = (self.Y - self.PlateYTop)/ self.Y
+            if (j / self.L) < normalizedDistanceOfTop:
+                return True
+        return False"""
+
 
     def initialize(self):
         self.freeFlowInit()
 
     def freeFlowInit(self):
         #initialize all vorticities as 0
-        self.W = np.zeros((L+1,L+1))
-        self.Psi = np.zeros((L+1,L+1))
+        self.W = np.zeros((self.L+1,self.L+1))
+        self.Psi = np.zeros((self.L+1,self.L+1))
         for j in range(0, self.L+1):
             freeflow = self.V0*self.X*j/(self.L+1)
             for l in range(0, self.L+1):
-                if(inPlate(l,j)):
-                    self.Psi[l][j] = 0
+                if(self.inPlate(l, j)):
+                    self.Psi[l][j] = 0 #Inside Plate
                 else:
                     self.Psi[l][j] = freeflow
 
@@ -44,7 +64,7 @@ class Flow:
                 self.updatePsi()
             else:
                 self.updateW()
-            self.updatePsi = !self.updatePsi
+            self.updatePsi = not self.updatePsi
 
     def updatePsi(self):
         self.updatePsiInternal()
@@ -60,27 +80,27 @@ class Flow:
     def updatePsiBoundary(self):
         for j in range(0, self.L+1): #y-ccordinate j/L
             for l in range(0, self.L+1): #x-coordinate l/L
-                if(l == 0): #Upstream
-                    self.psi[l][j] = self.psi[l+1][j]
-                elif(l == L): #Downstream
-                    self.psi[l][j] = self.psi[l-1][j]
-                elif(j == L): #Side opposite plate
-                    self.psi[l][j] = self.psi[l][j-1]*self.V0/self.h
+                if(j == self.L): #Side opposite plate
+                    self.Psi[l][j] = self.Psi[l][j-1]*self.V0/self.h
+                elif(l == 0): #Upstream
+                    self.Psi[l][j] = self.Psi[l+1][j]
+                elif(l == self.L): #Downstream
+                    self.Psi[l][j] = self.Psi[l-1][j]
                 elif(j == 0): #Plate side
-                    self.psi[l][j] = 0
-                elif((l/(L+1) == self.plateFront) and (j/(L+1) < self.plateTop)): #Front of plate
-                    self.psi[l][j] = -1 #TODO
-                elif((l/(L+1) == self.plateBack) and (j/(L+1) < self.plateTop)): #Back of plate
-                    self.psi[l][j] = -1 #TODO
-                elif((j/(L+1) == self.plateTop) and (l/(L+1) >= self.plateFront) and (l/(L+1) <= self.plateBack)): #Top of plate
-                    self.psi[l][j] = -1 #TODO
-                elif(self.inplate(l,j)): #Inside plate
-                    self.psi[l][j] = 0
+                    self.Psi[l][j] = 0
+                elif((l/(self.L+1) == self.plateFront) and (j/(self.L+1) < self.plateTop)): #Front of plate
+                    self.Psi[l][j] = -1 #TODO
+                elif((l/(self.L+1) == self.plateBack) and (j/(self.L+1) < self.plateTop)): #Back of plate
+                    self.Psi[l][j] = -1 #TODO
+                elif((j/(self.L+1) == self.plateTop) and (l/(self.L+1) >= self.plateFront) and (l/(self.L+1) <= self.plateBack)): #Top of plate
+                    self.Psi[l][j] = -1 #TODO
+                elif(self.inPlate(l,j)): #Inside plate
+                    self.Psi[l][j] = 0
 
 
     def updateWInternal(self):
-        for l in range(1,L+1):
-            for j in range(1,L+1):
+        for l in range(1,self.L+1):
+            for j in range(1,self.L+1):
                 if not self.inPlate(l,j):
                     psiStencil = self.PsiStencil(l,j)
                     if w != False:
@@ -91,52 +111,39 @@ class Flow:
     def updateWBoundary(self):
         for j in range(0, self.L+1): #y-ccordinate j/L
             for l in range(0, self.L+1): #x-coordinate l/L
-                if(l == 0): #Upstream
-                    self.w[l][j] = 0
-                elif(l == L): #Downstream
-                    self.w[l][j] = self.w[l-1][j]
-                elif(j == L): #Side opposite plate
-                    self.w[l][j] = 0
+                if(j == self.L): #Side opposite plate
+                    self.W[l][j] = 0
+                elif(l == 0): #Upstream
+                    self.W[l][j] = 0
+                elif(l == self.L): #Downstream
+                    self.W[l][j] = self.W[l-1][j]
                 elif(j == 0): #Plate side
-                    self.w[l][j] = 0
-                elif((l/(L+1) == self.plateFront) and (j/(L+1) < self.plateTop)): #Front of plate
-                    self.w[l][j] = -2*(self.h*self.h)*self.psi[l][j-1]
-                elif((l/(L+1) == self.plateBack) and (j/(L+1) < self.plateTop)): #Back of plate
-                    self.w[l][j] = -2/(self.h*self.h)*self.psi[l][j+1]
-                elif((j/(L+1) == self.plateTop) and (l/(L+1) >= self.plateFront) and (l/(L+1) <= self.plateBack)): #Top of plate
-                    self.w[l][j] = -2/(self.h*self.h)*self.psi[l+1][j]
-                elif(self.inplate(l,j): #Inside plate
-                    self.w[l][j] = 0
+                    self.W[l][j] = 0
+                elif((l/(self.L+1) == self.plateFront) and (j/(self.L+1) < self.plateTop)): #Front of plate
+                    self.W[l][j] = -2*(self.h*self.h)*self.psi[l][j-1]
+                elif((l/(self.L+1) == self.plateBack) and (j/(self.L+1) < self.plateTop)): #Back of plate
+                    self.W[l][j] = -2/(self.h*self.h)*self.psi[l][j+1]
+                elif((j/(self.L+1) == self.plateTop) and (l/(self.L+1) >= self.plateFront) and (l/(self.L+1) <= self.plateBack)): #Top of plate
+                    self.W[l][j] = -2/(self.h*self.h)*self.psi[l+1][j]
+                elif(self.inPlate(l,j)): #Inside plate
+                    self.W[l][j] = 0
 
     def PsiStencil(self,l,j):
-        if l != 0 and j != 0 and l !=  (self.L +1) and j != (self.L +1):
+        if l != 0 and j != 0 and l !=  (self.self.L +1) and j != (self.self.L +1):
             Psi = self.Psi[l,j]
             stencil = -4*Psi + self.Psi[l+1,j] + self.Psi[l-1,j] + self.Psi[l,j+1]+ self.Psi[l,j-1]
             return stencil
         else:
             return False
 
-    def inPlate(self,l,j):
-        normalizedDistanceFromFront = self.PlateXFront / self.X
-        normalizedDistanceOfBack = (self.X - self.PlateXBack)/ self.X
-        if normalizedDistanceFromFront > (l / self.L) and normalizedDistanceOfBack > (l / self.L):
-            normalizedDistanceOfTop = (self.Y - self.PlateYTop)/ self.Y
-            if (j / self.J) < normalizedDistanceOfTop:
-                return True
-        return False
+    def flowGraph(self):
+        conlines = np.linspace(0, 1, 20)
+        plt.contour(self.Psi, conlines, cmap = 'plasma')
+        plt.show()
 
-    """I don't think we need any super indexing anymore """
-    # """Takes a superindexed vector and returns a normally indexed matrix"""
-    # def desuperindex(super_index, L):
-    #     regular_index = np.zeros((L+1, L+1))
-    #     for j in range(0, L+1):
-    #         for l in range(0, L+1):
-    #             i = (j*(L+1))+l
-    #             regular_index[l][j] = super_index[i]
-    #     return regular_index
 
-L = 16
-a, b = make_superindexed(L)
-print("a: ", a)
-print("b: ", b)
-print(desuperindex(b, L))
+free = Flow(1, 1, 32)
+free.initialize()
+free.updateWBoundary()
+free.updatePsiBoundary()
+free.flowGraph()
