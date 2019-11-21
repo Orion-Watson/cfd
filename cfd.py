@@ -142,7 +142,12 @@ class Flow:
 
     def flowGraph(self):
         conlines = np.linspace(0, 1, 20)
-        plt.contour(self.Psi, conlines, cmap = 'plasma')
+        print(self.Psi)
+        #graph the transpose of Psi
+        plt.contour(self.Psi.T, conlines, cmap = 'plasma')
+        plt.xlabel("X")
+        plt.ylabel("Y")
+        plt.title(r"$\Psi$")
         plt.show()
 
 
