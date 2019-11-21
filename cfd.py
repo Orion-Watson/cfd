@@ -140,11 +140,22 @@ class Flow:
         else:
             return False
 
+    def getXYCoords(self,A):
+        cordsX = np.zeros((len(A),len(A)))
+        cordsY = np.zeros((len(A),len(A)))
+        for l in range(len(A)):
+            for j in range(len(A)):
+                x = (l/self.L)*self.X
+                y = (j/self.L)*self.Y
+                cordsX[l,j] = x
+                cordsY[l,j] = y
+
+        return cordsX, cordsY
+
     def flowGraph(self):
         conlines = np.linspace(0, 1, 20)
-        print(self.Psi)
-        #graph the transpose of Psi
-        plt.contour(self.Psi.T, conlines, cmap = 'plasma')
+        X,Y = self.getXYCoords(self.Psi)
+        plt.contour(X,Y,self.Psi, conlines, cmap = 'plasma')
         plt.xlabel("X")
         plt.ylabel("Y")
         plt.title(r"$\Psi$")
