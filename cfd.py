@@ -28,18 +28,6 @@ class Flow:
         top = j/(self.L+1) < self.plateTop
         return (front and back and top)
 
-
-
-    """def inPlate(self,l,j):
-        normalizedDistanceFromFront = self.PlateXFront / self.X
-        normalizedDistanceOfBack = (self.X - self.PlateXBack)/ self.X
-        if (normalizedDistanceFromFront > (l / self.L)) and (normalizedDistanceOfBack > (l / self.L)):
-            normalizedDistanceOfTop = (self.Y - self.PlateYTop)/ self.Y
-            if (j / self.L) < normalizedDistanceOfTop:
-                return True
-        return False"""
-
-
     def initialize(self):
         self.freeFlowInit()
 
@@ -132,6 +120,22 @@ class Flow:
         if l != 0 and j != 0 and l !=  (self.self.L +1) and j != (self.self.L +1):
             Psi = self.Psi[l,j]
             stencil = -4*Psi + self.Psi[l+1,j] + self.Psi[l-1,j] + self.Psi[l,j+1]+ self.Psi[l,j-1]
+            return stencil
+        else:
+            return False
+
+    def PsiStencilDy(self,l,j):
+        if l != 0 and j != 0 and l !=  (self.self.L +1) and j != (self.self.L +1):
+            h = j/(L+1) * self.Y
+            stencil = (self.Psi[l,j+1] - self.Psi[l,j-1])/h
+            return stencil
+        else:
+            return False
+
+    def PsiStencilDx(self,l,j):
+        if l != 0 and j != 0 and l !=  (self.self.L +1) and j != (self.self.L +1):
+            h = l/(L+1) * self.X
+            stencil = (self.Psi[l+1,j] - self.Psi[l-1,j]) / h
             return stencil
         else:
             return False
