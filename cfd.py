@@ -3,39 +3,43 @@ import matplotlib.pyplot as plt
 
 class Flow:
     def __init__(self, X, Y, L):
-        self.L = L
-        #length of the surface in x direction
-        self.X = X
-        #length of the surface in y direction
-        self.Y = Y
-        self.V0 = 1
+        self.L = L #highest index in matrix
+        self.X = X #length of surface in x direction
+        self.Y = Y #length of the surface in y direction
+        self.V0 = 1 #Velocity of incoming fluid
+        #Plate boundaries
         self.PlateXFront = .25
         self.PlateXBack = .375
         self.PlateYTop = .25
+        #Plate boundaries as fractions
         self.plateFront = self.PlateXFront/self.X
         self.plateBack = self.PlateXBack/self.X
         self.plateTop = self.PlateYTop/self.Y
-        self.W = np.zeros((L+1,L+1))
-        self.Psi = np.zeros((L+1,L+1))
-        self.hX = X/(L+1)
+        self.W = np.zeros((L+1,L+1)) #Vorticity matrix
+        self.Psi = np.zeros((L+1,L+1)) #Stream function matrix
+        self.hX = X/(L+1) #step sizes
         self.hY = Y/(L+1)
-        #indicates wheather Psi or W should be updated
-        self.updatePsiMatrix = True
-        self.solutionFound = False
-        self.maxIterations = 1
+        self.updatePsiMatrix = True #Whether w has been updates since last psi update
+        self.solutionFound = False #True when within tolerance
+        self.maxIterations = 10 #Max iterations before giving up
 
+    """Returns true if (l,j) is inside the plate"""
     def inPlate(self, l, j):
         front = l/(self.L+1) > self.plateFront
         back = l/(self.L+1) < self.plateBack
         top = j/(self.L+1) < self.plateTop
         return (front and back and top)
 
+    """Sets reasonable initial values"""
     def initialize(self):
         self.freeFlowInit()
 
+    """Sets all values to free flow conditions"""
     def freeFlowInit(self):
         #initialize all vorticities as 0
         self.W = np.zeros((self.L+1,self.L+1))
+
+        #set psi to free flow conditions except for 0 in plate
         self.Psi = np.zeros((self.L+1,self.L+1))
         for j in range(0, self.L+1):
             freeflow = self.V0*self.X*j/(self.L+1)
@@ -45,7 +49,7 @@ class Flow:
                 else:
                     self.Psi[l][j] = freeflow
 
-
+    """Alternate between updating psi matrix and w matrix"""
     def solve(self):
         #initialize Psi matrix and W matrix
         self.initialize()
@@ -70,7 +74,7 @@ class Flow:
                 print(self.W)
                 print("Psi: ")
                 print(self.Psi)
-            self.updatePsiMatrix = not self.updatePsiMatrix
+            self.updatePsiMatrix = not self.updatePsiMatrix #Change which we update next time
             i +=1
 
     def updatePsi(self):
@@ -81,14 +85,16 @@ class Flow:
         self.updateWInternal()
         self.updateWBoundary()
 
+    """TODO: fix this, gives crazy noise instead of real values"""
     def updatePsiInternal(self):
         for j in range(0, self.L+1):
             for l in range(0, self.L+1):
                 if l != 0 and j != 0 and l != (self.L) and j != (self.L):
                     if not self.inPlate(l,j):
-                        Psi = self.PsiStencilLaPlaz(l,j) + self.W[j][l]
+                        Psi = self.PsiStencilLaPlaz(l,j) + self.W[j][l] #TODO: fix this
                         self.Psi[j,l] = Psi
 
+    """Imposes boundary conditions, call after updating psi internal"""
     def updatePsiBoundary(self):
         for j in range(0, self.L+1): #y-ccordinate j/L
             for l in range(0, self.L+1): #x-coordinate l/L
@@ -102,11 +108,11 @@ class Flow:
                     elif(j == 0): #Plate side
                         self.Psi[l][j] = 0
                     elif((l/(self.L+1) == self.plateFront) and (j/(self.L+1) < self.plateTop)): #Front of plate
-                        self.Psi[l][j] = 0 #TODO
+                        self.Psi[l][j] = 0
                     elif((l/(self.L+1) == self.plateBack) and (j/(self.L+1) < self.plateTop)): #Back of plate
-                        self.Psi[l][j] = 0 #TODO
+                        self.Psi[l][j] = 0
                     elif((j/(self.L+1) == self.plateTop) and (l/(self.L+1) >= self.plateFront) and (l/(self.L+1) <= self.plateBack)): #Top of plate
-                        self.Psi[l][j] = 0 #TODO
+                        self.Psi[l][j] = 0
                     elif(self.inPlate(l,j)): #Inside plate
                         self.Psi[l][j] = 0
                 else:
@@ -145,6 +151,7 @@ class Flow:
                 else:
                     self.W[l,j] = 0
 
+    """Stencil for Laplacian of psi"""
     def PsiStencilLaPlaz(self,l,j):
         if l != 0 and j != 0 and l !=  (self.L +1) and j != (self.L +1):
             Psi = self.Psi[l,j]
@@ -167,6 +174,7 @@ class Flow:
         else:
             return False
 
+    """Compute X and Y coordinates"""
     def getXYCoords(self,A):
         cordsX = np.zeros((len(A),len(A)))
         cordsY = np.zeros((len(A),len(A)))
@@ -179,6 +187,7 @@ class Flow:
 
         return cordsX, cordsY
 
+    """Graph contour lines of psi"""
     def flowGraph(self):
         print("graph: ")
         print("W: ")
