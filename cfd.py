@@ -17,10 +17,12 @@ class Flow:
         self.plateTop = self.PlateYTop/self.Y
         self.W = np.zeros((L+1,L+1))
         self.Psi = np.zeros((L+1,L+1))
-        self.h = self.X/self.Y
+        self.hX = X/(L+1)
+        self.hY = Y/(L+1)
         #indicates wheather Psi or W should be updated
-        self.updatePsi = True
+        self.updatePsiMatrix = True
         self.solutionFound = False
+        self.maxIterations = 4
 
     def inPlate(self, l, j):
         front = l/(self.L+1) > self.plateFront
@@ -47,15 +49,23 @@ class Flow:
     def solve(self):
         #initialize Psi matrix and W matrix
         self.initialize()
-        while not self.solutionFound:
-            if self.updatePsi:
+        i = 0
+        while not self.solutionFound and i < self.maxIterations:
+            print("Psi: ")
+            print(self.Psi)
+            print()
+            print()
+            print("W:")
+            print(self.W)
+            if self.updatePsiMatrix:
                 self.updatePsi()
             else:
                 self.updateW()
-            self.updatePsi = not self.updatePsi
+            self.updatePsiMatrix = not self.updatePsiMatrix
+            i +=1
 
     def updatePsi(self):
-        self.updatePsiInternal()
+        #self.updatePsiInternal()
         self.updatePsiBoundary()
 
     def updateW(self):
@@ -63,13 +73,19 @@ class Flow:
         self.updateWBoundary()
 
     def updatePsiInternal(self):
-        print()
+        for j in range(0, self.L+1):
+            for l in range(0, self.L+1):
+                if l != 0 and j != 0 and l != (self.L) and j != (self.L):
+                    print(str(l) + ",  " + str(j))
+                    if not self.inPlate(l,j):
+                        Psi = self.PsiStencilLaPlaz(l,j) + self.W[j][l]
+                        self.Psi[j,l] = Psi
 
     def updatePsiBoundary(self):
         for j in range(0, self.L+1): #y-ccordinate j/L
             for l in range(0, self.L+1): #x-coordinate l/L
                 if(j == self.L): #Side opposite plate
-                    self.Psi[l][j] = self.Psi[l][j-1]*self.V0/self.h
+                    self.Psi[l][j] = self.Psi[l][j-1]*self.V0/self.hY
                 elif(l == 0): #Upstream
                     self.Psi[l][j] = self.Psi[l+1][j]
                 elif(l == self.L): #Downstream
@@ -90,50 +106,55 @@ class Flow:
         for l in range(1,self.L+1):
             for j in range(1,self.L+1):
                 if not self.inPlate(l,j):
-                    psiStencil = self.PsiStencil(l,j)
-                    if w != False:
-                        self.W[l,j] = psiStencil
+                    if l != 0 and j != 0 and l != (self.L) and j != (self.L):
+                        PsiStencilLaPlaz = self.PsiStencilLaPlaz(l,j)
+                        self.W[l,j] = PsiStencilLaPlaz
                 else:
                     self.W[l,j] = 0
 
     def updateWBoundary(self):
         for j in range(0, self.L+1): #y-ccordinate j/L
             for l in range(0, self.L+1): #x-coordinate l/L
-                if(j == self.L): #Side opposite plate
-                    self.W[l][j] = 0
-                elif(l == 0): #Upstream
-                    self.W[l][j] = 0
-                elif(l == self.L): #Downstream
-                    self.W[l][j] = self.W[l-1][j]
-                elif(j == 0): #Plate side
-                    self.W[l][j] = 0
-                elif((l/(self.L+1) == self.plateFront) and (j/(self.L+1) < self.plateTop)): #Front of plate
-                    self.W[l][j] = -2*(self.h*self.h)*self.psi[l][j-1]
-                elif((l/(self.L+1) == self.plateBack) and (j/(self.L+1) < self.plateTop)): #Back of plate
-                    self.W[l][j] = -2/(self.h*self.h)*self.psi[l][j+1]
-                elif((j/(self.L+1) == self.plateTop) and (l/(self.L+1) >= self.plateFront) and (l/(self.L+1) <= self.plateBack)): #Top of plate
-                    self.W[l][j] = -2/(self.h*self.h)*self.psi[l+1][j]
-                elif(self.inPlate(l,j)): #Inside plate
-                    self.W[l][j] = 0
+                if not self.inPlate(l,j):
+                    if(j == self.L): #Side opposite plate
+                        self.W[l][j] = 0
+                    elif(l == 0): #Upstream
+                        self.W[l][j] = 0
+                    elif(l == self.L): #Downstream
+                        self.W[l][j] = self.W[l-1][j]
+                    elif(j == 0): #Plate side
+                        self.W[l][j] = 0
+                    elif((l/(self.L+1) == self.plateFront) and (j/(self.L+1) < self.plateTop)): #Front of plate
+                        print("val: ", (-2/(self.hY*self.hY))*self.Psi[l][j-1])
+                        self.W[l][j] = (-2/(self.hY*self.hY))*self.Psi[l][j-1]
+                    elif((l/(self.L+1) == self.plateBack) and (j/(self.L+1) < self.plateTop)): #Back of plate
+                        self.W[l][j] = (-2/(self.hY*self.hY))*self.Psi[l][j+1]
+                        print("val: ", (-2/(self.hY*self.hY))*self.Psi[l][j+1])
+                    elif((j/(self.L+1) == self.plateTop) and (l/(self.L+1) >= self.plateFront) and (l/(self.L+1) <= self.plateBack)): #Top of plate
+                        self.W[l][j] = (-2/(self.hX*self.hX))*self.Psi[l+1][j]
+                        print("val: ", (-2/(self.hX*self.hX))*self.Psi[l+1][j])
+                    elif(self.inPlate(l,j)): #Inside plate
+                        self.W[l][j] = 0
+                else:
+                    self.W[l,j] = 0
 
-    def PsiStencil(self,l,j):
-        if l != 0 and j != 0 and l !=  (self.self.L +1) and j != (self.self.L +1):
+    def PsiStencilLaPlaz(self,l,j):
+        print("PSI: " + str(l) + ",  " + str(j))
+        if l != 0 and j != 0 and l !=  (self.L +1) and j != (self.L +1):
             Psi = self.Psi[l,j]
-            stencil = -4*Psi + self.Psi[l+1,j] + self.Psi[l-1,j] + self.Psi[l,j+1]+ self.Psi[l,j-1]
+            stencil = -Psi + (1/4)*(self.Psi[l+1,j] + self.Psi[l-1,j] + self.Psi[l,j+1]+ self.Psi[l,j-1])
             return stencil
         else:
             return False
 
-    def PsiStencilDy(self,l,j):
-        if l != 0 and j != 0 and l !=  (self.self.L +1) and j != (self.self.L +1):
+    def PsiStencilLaPlazDy(self,l,j):
+        if l != 0 and j != 0 and l !=  (self.L +1) and j != (self.L +1):
             h = j/(L+1) * self.Y
             stencil = (self.Psi[l,j+1] - self.Psi[l,j-1])/h
             return stencil
-        else:
-            return False
 
-    def PsiStencilDx(self,l,j):
-        if l != 0 and j != 0 and l !=  (self.self.L +1) and j != (self.self.L +1):
+    def PsiStencilLaPlazDx(self,l,j):
+        if l != 0 and j != 0 and l !=  (self.L +1) and j != (self.L +1):
             h = l/(L+1) * self.X
             stencil = (self.Psi[l+1,j] - self.Psi[l-1,j]) / h
             return stencil
@@ -162,8 +183,9 @@ class Flow:
         plt.show()
 
 
-free = Flow(1, 1, 32)
+free = Flow(1, 1, 7)
 free.initialize()
-free.updateWBoundary()
-free.updatePsiBoundary()
+#free.updateWBoundary()
+#free.updatePsiBoundary()
+free.solve()
 free.flowGraph()
