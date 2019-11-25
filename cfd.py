@@ -7,32 +7,28 @@ class Flow:
         self.X = X #length of surface in x direction
         self.Y = Y #length of the surface in y direction
         self.V0 = 1 #Velocity of incoming fluid
-        self.w = .3 #over relaxation factor
+        self.w = 1.1 #over relaxation factor
         self.viscosity = .8 #viscosity of the fluid
         #Plate boundaries
-        self.PlateXFront = .25
-        self.PlateXBack = .375
-        self.PlateYTop = .25
-        #Plate boundaries as fractions
-        self.plateFront = self.PlateXFront/self.X
-        self.plateBack = self.PlateXBack/self.X
-        self.plateTop = self.PlateYTop/self.Y
+        self.PlateXFront = .2 * X
+        self.PlateXBack = .5 * X
+        self.PlateYTop = .2 * Y
         #Vorticity matrix
         self.W = np.zeros((L+1,L+1))
         #Stream function matrix
         self.Psi = np.zeros((L+1,L+1))
         #step sizes
-        self.hX = X/(L+1)
-        self.hY = Y/(L+1)
+        self.hX = X/(L)
+        self.hY = Y/(L)
         self.updatePsiMatrix = True #Whether w has been updates since last psi update
         self.solutionFound = False #True when within tolerance
-        self.maxIterations = 10 #Max iterations before giving up
+        self.maxIterations = 3 #Max iterations before giving up
 
     """Returns true if (l,j) is inside the plate"""
     def inPlate(self, l, j):
-        front = l/(self.L+1) > self.plateFront
-        back = l/(self.L+1) < self.plateBack
-        top = j/(self.L+1) < self.plateTop
+        front = l*self.hX > self.PlateXFront
+        back = l*self.hX < self.PlateXBack
+        top = j*self.hY < self.PlateYTop
         return (front and back and top)
 
     """Sets reasonable initial values"""
@@ -43,11 +39,10 @@ class Flow:
     def freeFlowInit(self):
         #initialize all vorticities as 0
         self.W = np.zeros((self.L+1,self.L+1))
-
         #set psi to free flow conditions except for 0 in plate
         self.Psi = np.zeros((self.L+1,self.L+1))
         for j in range(0, self.L+1):
-            freeflow = self.V0*self.hX*j
+            freeflow = self.V0*self.hY*j
             for l in range(0, self.L+1):
                 if(self.inPlate(l, j)):
                     self.Psi[l][j] = 0 #Inside Plate
@@ -58,70 +53,34 @@ class Flow:
     def solve(self):
         #initialize Psi matrix and W matrix
         self.initialize()
-        print("init: ")
-        print("W: ")
-        print(self.W)
-        print("Psi: ")
-        print(self.Psi)
+        self.flowGraph()
         i = 0
         while not self.solutionFound and i < self.maxIterations:
             if self.updatePsiMatrix:
+                print("updatePsi")
                 self.updatePsi()
-                print("updatePsi: ")
-                print("W: ")
-                print(self.W)
-                print("Psi: ")
-                print(self.Psi)
+                print("Psi: ", self.Psi)
+                self.flowGraph()
             else:
+                print("updateW")
                 self.updateW()
-                print("updateW: ")
-                print("W: ")
-                print(self.W)
-                print("Psi: ")
-                print(self.Psi)
+                print("W: ", self.W)
+                self.flowGraph()
             self.updatePsiMatrix = not self.updatePsiMatrix #Change which we update next time
             i +=1
 
     """ Updates Psi matrix by calling functions to update Psi internal points
     and Psi boundary points"""
     def updatePsi(self):
-        self.updatePsiInternal()
-        self.updatePsiBoundary()
-
-    """ Updates W matrix by calling functions to update Psi internal points
-    and Psi boundary points"""
-    def updateW(self):
-        self.updateWInternal()
-        self.updateWBoundary()
-
-    """Updates the internal values of the Psi Matrix based on previous Psi
-    values and updated w values"""
-    def updatePsiInternal(self):
-        for j in range(0, self.L+1):
-            for l in range(0, self.L+1):
-                #Do not update boundary Psi values
-                if l != 0 and j != 0 and l != (self.L) and j != (self.L):
-                    #do not update Psi values in the plate
-                    if not self.inPlate(l,j):
-                        W = self.W[l,j]
-                        PsiSquareStencil = self.PsiSquareStencil(l,j)
-                        Psi = ((1-self.w) * self.Psi[l,j]) + (self.w * PsiSquareStencil) - W
-                        self.Psi[j,l] = Psi
-                    else:
-                        #set values inside plate to 0
-                        self.Psi[j,l] = 0
-
-    """Imposes boundary conditions on the Psi matrix"""
-    def updatePsiBoundary(self):
-        for j in range(0, self.L+1): #y-ccordinate j/L
-            for l in range(0, self.L+1): #x-coordinate l/L
+        for l in range(0, self.L+1):
+            for j in range(0, self.L+1):
                 if not self.inPlate(l,j):
                     #Side opposite plate
                     if(j == self.L):
-                        self.Psi[l][j] = self.V0*self.Y
+                        self.Psi[l][j] = self.V0
                     #Upstream
                     elif(l == 0):
-                        self.Psi[l][j] = self.Psi[l+1][j]
+                        self.Psi[l][j] = self.V0*self.hY*j
                     #Downstream
                     elif(l == self.L):
                         self.Psi[l][j] = self.Psi[l-1][j]
@@ -129,57 +88,68 @@ class Flow:
                     elif(j == 0):
                         self.Psi[l][j] = 0
                     #Front of plate
-                    elif((l/(self.L+1) == self.plateFront) and (j/(self.L+1) < self.plateTop)):
+                    elif((l*self.hX == self.PlateXFront) and (j*self.hY < self.PlateYTop)):
                         self.Psi[l][j] = 0
                     #Back of plate
-                    elif((l/(self.L+1) == self.plateBack) and (j/(self.L+1) < self.plateTop)):
+                    elif((l*self.hX == self.PlateXBack) and (j*self.hY < self.PlateYTop)):
                         self.Psi[l][j] = 0
                     #Top of plate
-                    elif((j/(self.L+1) == self.plateTop) and (l/(self.L+1) >= self.plateFront) and (l/(self.L+1) <= self.plateBack)):
+                    elif((j*self.hY) == self.PlateYTop) and (l*self.hX >= self.PlateXFront) and (l*self.hX <= self.PlateXBack):
                         self.Psi[l][j] = 0
-                    #Inside plate
-                    elif(self.inPlate(l,j)):
-                        self.Psi[l][j] = 0
+                    #Interal Point Not on Boundary
+                    else:
+                        W = self.W[l,j]
+                        PsiSquareStencil = self.PsiSquareStencil(l,j)
+                        Psi = ((1-self.w) * self.Psi[l,j]) + (self.w * PsiSquareStencil) + (W *self.hX*self.hY)
+                        self.Psi[l,j] = Psi
+                else:
+                    #set values inside plate to 0
+                    self.Psi[l,j] = 0
 
-    """Updates the internal values of the w Matrix based on previous w
-    values and updated Psi values"""
-    def updateWInternal(self):
-        for l in range(1,self.L+1):
-            for j in range(1,self.L+1):
-                #only update internal points
-                if l != 0 and j != 0 and l != (self.L) and j != (self.L):
-                    #make sure index is not in plate
-                    if not self.inPlate(l,j):
+    """ Updates W matrix by calling functions to update Psi internal points
+    and Psi boundary points"""
+    def updateW(self):
+        for l in range(0, self.L+1): #y-ccordinate j/L
+            for j in range(0, self.L+1): #x-coordinate l/L
+                if not self.inPlate(l,j):
+                    #Side opposite plate
+                    if(j == self.L):
+                        self.W[l][j] = 0
+                     #Upstream
+                    elif(l == 0):
+                        self.W[l][j] = 0
+                     #Downstream
+                    elif(l == self.L):
+                        """TODO"""
+                        self.W[l][j] = self.W[l-1][j]
+                    #Plate side
+                    elif(j == 0):
+                        self.W[l][j] = 0
+                    #Front of plate
+                    elif((l*self.hX == self.PlateXFront) and (j*self.hY) < self.PlateYTop):
+                        self.W[l][j] = (-2/(self.hY*self.hY))*self.Psi[l][j-1]
+                        print("---")
+                        print(l, ", ", j)
+                        print("front of plate: ", self.W[l][j])
+                    #Back of plate
+                    elif((l*self.hX == self.PlateXBack) and (j*self.hY) < self.PlateYTop):
+                        self.W[l][j] = (-2/(self.hY*self.hY))*self.Psi[l][j+1]
+                        print("---")
+                        print(l, ", ", j)
+                        print("back of plate: ", self.W[l][j])
+                    #Top of plate
+                    elif((j*self.hY) == self.PlateYTop) and (l*self.hX >= self.PlateXFront) and (l*self.hX) <= self.PlateXBack:
+                        self.W[l][j] = (-2/(self.hX*self.hX))*self.Psi[l+1][j]
+                        print("---")
+                        print(l, ", ", j)
+                        print("top of plate: ", self.W[l][j])
+                    else:
                         partial = 1/(self.viscosity) * (self.PsiStencilDy(l,j) * self.WStencilDx(l,j) -
                         (self.PsiStencilDx(l,j) * self.WStencilDy(l,j)))
                         squareStencil = self.WSquareStencil(l,j)
-                        W = ((1-self.w)*self.W[l,j]) + (self.w)*squareStencil + partial
+                        W = ((1-self.w)*self.W[l,j]) + (self.w)*squareStencil - partial
                         self.W[l,j] = W
-                else:
-                    #set w in plate to 0
-                    self.W[l,j] = 0
-
-    """Imposes boundary conditions on the W matrix"""
-    def updateWBoundary(self):
-        for j in range(0, self.L+1): #y-ccordinate j/L
-            for l in range(0, self.L+1): #x-coordinate l/L
-                if not self.inPlate(l,j):
-                    if(j == self.L): #Side opposite plate
-                        self.W[l][j] = 0
-                    elif(l == 0): #Upstream
-                        self.W[l][j] = 0
-                    elif(l == self.L): #Downstream
-                        self.W[l][j] = self.W[l-1][j]
-                    elif(j == 0): #Plate side
-                        self.W[l][j] = 0
-                    elif((l/(self.L+1) == self.plateFront) and (j/(self.L+1) < self.plateTop)): #Front of plate
-                        self.W[l][j] = (-2/(self.hY*self.hY))*self.Psi[l][j-1]
-                    elif((l/(self.L+1) == self.plateBack) and (j/(self.L+1) < self.plateTop)): #Back of plate
-                        self.W[l][j] = (-2/(self.hY*self.hY))*self.Psi[l][j+1]
-                    elif((j/(self.L+1) == self.plateTop) and (l/(self.L+1) >= self.plateFront) and (l/(self.L+1) <= self.plateBack)): #Top of plate
-                        self.W[l][j] = (-2/(self.hX*self.hX))*self.Psi[l+1][j]
-                    elif(self.inPlate(l,j)): #Inside plate
-                        self.W[l][j] = 0
+                        print("internal point: ", self.W[l][j])
                 else:
                     self.W[l,j] = 0
 
@@ -238,11 +208,6 @@ class Flow:
 
     """Graph contour lines of psi"""
     def flowGraph(self):
-        print("graph: ")
-        print("W: ")
-        print(self.W)
-        print("Psi: ")
-        print(self.Psi)
         #conlines = np.linspace(0, 1, 20)
         X,Y = self.getXYCoords(self.Psi)
         plt.contour(X,Y,self.Psi, cmap = 'plasma')
@@ -252,7 +217,7 @@ class Flow:
         plt.show()
 
 
-free = Flow(1, 1, 7)
+free = Flow(1, 1, 10)
 free.initialize()
 #free.updateWBoundary()
 #free.updatePsiBoundary()
