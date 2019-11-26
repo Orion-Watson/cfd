@@ -76,7 +76,7 @@ class Flow:
                 if not self.inPlate(l,j):
                     #Side opposite plate
                     if(j == self.L):
-                        self.Psi[l][j] = self.V0
+                        self.Psi[l][j] = self.V0*self.Y
                     #Upstream
                     elif(l == 0):
                         self.Psi[l][j] = self.V0*self.hY*j
@@ -99,7 +99,7 @@ class Flow:
                     else:
                         W = self.W[l,j]
                         PsiSquareStencil = self.PsiSquareStencil(l,j)
-                        Psi = ((1-self.w) * self.Psi[l,j]) + (self.w * PsiSquareStencil) + (W *self.hX*self.hY)
+                        Psi = ((1-self.w) * self.Psi[l,j]) + (self.w * PsiSquareStencil) + ((self.w/4)*W*self.hX*self.hY)
                         self.Psi[l,j] = Psi
                 else:
                     #set values inside plate to 0
@@ -143,10 +143,10 @@ class Flow:
                         print(l, ", ", j)
                         print("top of plate: ", self.W[l][j])
                     else:
-                        partial = self.w/(4*self.viscosity) * (self.PsiStencilDy(l,j) * self.WStencilDx(l,j) -
+                        partial = 1/(4*self.viscosity) * (self.PsiStencilDy(l,j) * self.WStencilDx(l,j) -
                         (self.PsiStencilDx(l,j) * self.WStencilDy(l,j)))
                         squareStencil = self.WSquareStencil(l,j)
-                        W = ((1-self.w)*self.W[l,j]) + (self.w)*squareStencil - partial
+                        W = ((1-self.w)*self.W[l,j]) + (self.w)*(squareStencil - partial)
                         self.W[l,j] = W
                         print("internal point: ", self.W[l][j])
                 else:
@@ -169,28 +169,36 @@ class Flow:
         if l != 0 and j != 0 and l !=  (self.L +1) and j != (self.L +1):
             stencil = (1/4)*(self.W[l+1,j] + self.W[l-1,j] + self.W[l,j+1]+ self.W[l,j-1])
             return stencil
+        else:
+            print("error 238984")
 
     def PsiStencilDy(self,l,j):
         if l != 0 and j != 0 and l !=  (self.L +1) and j != (self.L +1):
             stencil = (self.Psi[l,j+1] - self.Psi[l,j-1])/(2*self.hY)
             return stencil
+        else:
+            print("error 983470294")
 
     def PsiStencilDx(self,l,j):
         if l != 0 and j != 0 and l !=  (self.L +1) and j != (self.L +1):
             stencil = (self.Psi[l+1,j] - self.Psi[l-1,j]) /(2*self.hX )
             return stencil
         else:
-            return False
+            print("error 123789293")
 
     def WStencilDy(self,l,j):
         if l != 0 and j != 0 and l !=  (self.L +1) and j != (self.L +1):
             stencil = (self.W[l,j+1] - self.W[l,j-1])/(2*self.hY)
             return stencil
+        else:
+            print("error 19804704")
 
     def WStencilDx(self,l,j):
         if l != 0 and j != 0 and l !=  (self.L +1) and j != (self.L +1):
             stencil = (self.W[l+1,j] - self.W[l-1,j])/(2*self.hX)
             return stencil
+        else:
+            print("error 2087948")
 
     """Compute X and Y coordinates"""
     def getXYCoords(self,A):
