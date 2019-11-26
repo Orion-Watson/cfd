@@ -3,13 +3,13 @@ import matplotlib.pyplot as plt
 
 class Flow:
     def __init__(self, X, Y, L):
-        print("L : ", L)
+        #print("L : ", L)
         self.L = L #highest index in matrix
         self.X = X #length of surface in x direction
         self.Y = Y #length of the surface in y direction
         self.V0 = 1 #Velocity of incoming fluid
         self.w = 1.5 #over relaxation factor
-        self.viscosity = .1 #viscosity of the fluid
+        self.viscosity = 0.1 #viscosity of the fluid
         #Plate boundaries
         self.PlateXFront = 3
         self.PlateXBack = 5
@@ -20,12 +20,12 @@ class Flow:
         self.Psi = np.zeros((L+1,L+1))
         #step sizes
         self.hX = X/(L)
-        print("hX: ", self.hX)
+        #print("hX: ", self.hX)
         self.hY = Y/(L)
-        print("hY: ", self.hY)
+        #print("hY: ", self.hY)
         self.updatePsiMatrix = True #Whether w has been updates since last psi update
         self.solutionFound = False #True when within tolerance
-        self.maxIterations = 3 #Max iterations before giving up
+        self.maxIterations = 100 #Max iterations before giving up
 
     """Returns true if (l,j) is inside the plate"""
     def inPlate(self, l, j):
@@ -56,16 +56,16 @@ class Flow:
     def solve(self):
         #initialize Psi matrix and W matrix
         self.initialize()
-        self.flowGraph()
+        #self.flowGraph()
         i = 0
         while not self.solutionFound and i < self.maxIterations:
             if self.updatePsiMatrix:
-                print("updatePsi")
+                #print("updatePsi")
                 self.updatePsi()
-                print("Psi: ", self.Psi)
-                self.flowGraph()
+                #print("Psi: ", self.Psi)
+                #self.flowGraph()
             else:
-                print("updateW")
+                #print("updateW")
                 self.updateW()
                 print("W: ", self.W)
             self.updatePsiMatrix = not self.updatePsiMatrix #Change which we update next time
@@ -120,8 +120,8 @@ class Flow:
     def updateW(self):
         for l in range(0, self.L+1): #y-ccordinate j/L
             for j in range(0, self.L+1): #x-coordinate l/L
-                print("-----")
-                print("x: ", l * self.hX, ' y: ', j * self.hY)
+                #print("-----")
+                #print("x: ", l * self.hX, ' y: ', j * self.hY)
                 if not self.inPlate(l,j):
                     #Side opposite plate
                     if(j == self.L):
@@ -138,28 +138,31 @@ class Flow:
                     #Front of plate
                     elif(l == self.PlateXFront) and (j < self.PlateYTop):
                         self.W[l][j] = (-2/(self.hY*self.hY))*self.Psi[l-1][j]
-                        print("---")
-                        print(l, ", ", j)
-                        print("front of plate: ", self.W[l][j])
+                        #print("---")
+                        #print(l, ", ", j)
+                        #print("front of plate: ", self.W[l][j])
                     #Back of plate
                     elif((l == self.PlateXBack) and (j) < self.PlateYTop):
                         self.W[l][j] = (-2/(self.hY*self.hY))*self.Psi[l+1][j]
-                        print("---")
-                        print(l, ", ", j)
-                        print("back of plate: ", self.W[l][j])
+                        #print("---")
+                        #print(l, ", ", j)
+                        #print("back of plate: ", self.W[l][j])
                     #Top of plate
                     elif((j) == self.PlateYTop) and (l >= self.PlateXFront) and (l) <= self.PlateXBack:
                         self.W[l][j] = (-2/(self.hX*self.hX))*self.Psi[l][j+1]
-                        print("---")
-                        print(l, ", ", j)
-                        print("top of plate: ", self.W[l][j])
+                        #print("---")
+                        #print(l, ", ", j)
+                        #print("top of plate: ", self.W[l][j])
                     else:
-                        partial = 1/(self.viscosity) * (self.PsiStencilDy(l,j) * self.WStencilDx(l,j) -
-                        (self.PsiStencilDx(l,j) * self.WStencilDy(l,j)))
-                        squareStencil = self.WSquareStencil(l,j)
-                        W = ((1-self.w)*self.W[l,j]) + (self.w)*(squareStencil - partial)
-                        self.W[l,j] = W
-                        print("internal point: ", self.W[l][j])
+                        psiywx = self.PsiStencilDy(l,j) * self.WStencilDx(l,j)
+                        psixwy = self.PsiStencilDx(l,j) * self.WStencilDy(l,j)
+                        partial = (1/self.viscosity)*(psiywx-psixwy)*self.hX*self.hY/4
+                        avg = (self.w)*self.WSquareStencil(l,j)
+                        factor = (1-self.w)*self.W[l,j]
+                        final = factor+avg+partial
+                        self.W[l,j] = final
+                        print(partial)
+                        #print("internal point: ", self.W[l][j])
                 else:
                     self.W[l,j] = 0
 
@@ -192,7 +195,7 @@ class Flow:
 
     def PsiStencilDx(self,l,j):
         if l != 0 and j != 0 and l !=  (self.L +1) and j != (self.L +1):
-            stencil = (self.Psi[l+1,j] - self.Psi[l-1,j]) /(2*self.hX )
+            stencil = (self.Psi[l+1,j] - self.Psi[l-1,j]) /(2*self.hX)
             return stencil
         else:
             print("error 123789293")
@@ -226,7 +229,7 @@ class Flow:
 
     """Graph contour lines of psi"""
     def flowGraph(self):
-        conlines = np.linspace(0, 1, 30)
+        conlines = np.linspace(0, 1, 50)
         X,Y = self.getXYCoords(self.Psi)
         plt.contour(X,Y,self.Psi, conlines, cmap = 'plasma')
         plt.xlabel("X")
