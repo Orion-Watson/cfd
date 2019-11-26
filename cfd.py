@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 
 class Flow:
     def __init__(self, X, Y, L):
+        print("L : ", L)
         self.L = L #highest index in matrix
         self.X = X #length of surface in x direction
         self.Y = Y #length of the surface in y direction
@@ -10,25 +11,27 @@ class Flow:
         self.w = 1.5 #over relaxation factor
         self.viscosity = .1 #viscosity of the fluid
         #Plate boundaries
-        self.PlateXFront = .2 * X
-        self.PlateXBack = .5 * X
-        self.PlateYTop = .2 * Y
+        self.PlateXFront = 3
+        self.PlateXBack = 5
+        self.PlateYTop = 3
         #Vorticity matrix
         self.W = np.zeros((L+1,L+1))
         #Stream function matrix
         self.Psi = np.zeros((L+1,L+1))
         #step sizes
         self.hX = X/(L)
+        print("hX: ", self.hX)
         self.hY = Y/(L)
+        print("hY: ", self.hY)
         self.updatePsiMatrix = True #Whether w has been updates since last psi update
         self.solutionFound = False #True when within tolerance
-        self.maxIterations = 7 #Max iterations before giving up
+        self.maxIterations = 3 #Max iterations before giving up
 
     """Returns true if (l,j) is inside the plate"""
     def inPlate(self, l, j):
-        front = l*self.hX > self.PlateXFront
-        back = l*self.hX < self.PlateXBack
-        top = j*self.hY < self.PlateYTop
+        front = l > self.PlateXFront
+        back = l < self.PlateXBack
+        top = j < self.PlateYTop
         return (front and back and top)
 
     """Sets reasonable initial values"""
@@ -87,19 +90,26 @@ class Flow:
                     elif(j == 0):
                         self.Psi[l][j] = 0
                     #Front of plate
-                    elif((l*self.hX == self.PlateXFront) and (j*self.hY < self.PlateYTop)):
+                    elif((l == self.PlateXFront) and (j < self.PlateYTop)):
                         self.Psi[l][j] = 0
                     #Back of plate
-                    elif((l*self.hX == self.PlateXBack) and (j*self.hY < self.PlateYTop)):
+                    elif((l == self.PlateXBack) and (j < self.PlateYTop)):
                         self.Psi[l][j] = 0
                     #Top of plate
-                    elif((j*self.hY) == self.PlateYTop) and (l*self.hX >= self.PlateXFront) and (l*self.hX <= self.PlateXBack):
+                    elif((j) == self.PlateYTop) and (l>= self.PlateXFront) and (l <= self.PlateXBack):
                         self.Psi[l][j] = 0
                     #Interal Point Not on Boundary
                     else:
                         W = self.W[l,j]
                         PsiSquareStencil = self.PsiSquareStencil(l,j)
                         Psi = ((1-self.w) * self.Psi[l,j]) + (self.w * PsiSquareStencil) + ((self.w/4)*W*self.hX*self.hY)
+                        # print("-----")
+                        # print("(1-self.w) * self.Psi[l,j]): ", (1-self.w) * self.Psi[l,j])
+                        # print("(self.w * PsiSquareStencil): ", (self.w * PsiSquareStencil))
+                        # print("((self.w/4)*W*self.hX*self.hY): ", ((self.w/4)*W*self.hX*self.hY))
+                        # print("previous Psi: ", self.Psi[l,j])
+                        # print("Psi: ", Psi)
+                        # print("-----")
                         self.Psi[l,j] = Psi
                 else:
                     #set values inside plate to 0
@@ -110,6 +120,8 @@ class Flow:
     def updateW(self):
         for l in range(0, self.L+1): #y-ccordinate j/L
             for j in range(0, self.L+1): #x-coordinate l/L
+                print("-----")
+                print("x: ", l * self.hX, ' y: ', j * self.hY)
                 if not self.inPlate(l,j):
                     #Side opposite plate
                     if(j == self.L):
@@ -119,31 +131,30 @@ class Flow:
                         self.W[l][j] = 0
                      #Downstream
                     elif(l == self.L):
-                        """TODO"""
                         self.W[l][j] = self.W[l-1][j]
                     #Plate side
                     elif(j == 0):
                         self.W[l][j] = 0
                     #Front of plate
-                    elif((l*self.hX == self.PlateXFront) and (j*self.hY) < self.PlateYTop):
+                    elif(l == self.PlateXFront) and (j < self.PlateYTop):
                         self.W[l][j] = (-2/(self.hY*self.hY))*self.Psi[l-1][j]
                         print("---")
                         print(l, ", ", j)
                         print("front of plate: ", self.W[l][j])
                     #Back of plate
-                    elif((l*self.hX == self.PlateXBack) and (j*self.hY) < self.PlateYTop):
+                    elif((l == self.PlateXBack) and (j) < self.PlateYTop):
                         self.W[l][j] = (-2/(self.hY*self.hY))*self.Psi[l+1][j]
                         print("---")
                         print(l, ", ", j)
                         print("back of plate: ", self.W[l][j])
                     #Top of plate
-                    elif((j*self.hY) == self.PlateYTop) and (l*self.hX >= self.PlateXFront) and (l*self.hX) <= self.PlateXBack:
+                    elif((j) == self.PlateYTop) and (l >= self.PlateXFront) and (l) <= self.PlateXBack:
                         self.W[l][j] = (-2/(self.hX*self.hX))*self.Psi[l][j+1]
                         print("---")
                         print(l, ", ", j)
                         print("top of plate: ", self.W[l][j])
                     else:
-                        partial = 1/(4*self.viscosity) * (self.PsiStencilDy(l,j) * self.WStencilDx(l,j) -
+                        partial = 1/(self.viscosity) * (self.PsiStencilDy(l,j) * self.WStencilDx(l,j) -
                         (self.PsiStencilDx(l,j) * self.WStencilDy(l,j)))
                         squareStencil = self.WSquareStencil(l,j)
                         W = ((1-self.w)*self.W[l,j]) + (self.w)*(squareStencil - partial)
@@ -224,10 +235,7 @@ class Flow:
         plt.show()
 
 
-free = Flow(1, 1, 50)
-free.initialize()
-#free.updateWBoundary()
-#free.updatePsiBoundary()
+free = Flow(1, 1, 10)
 
 free.solve()
 free.flowGraph()
