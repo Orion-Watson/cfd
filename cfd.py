@@ -7,8 +7,8 @@ class Flow:
         self.X = X #length of surface in x direction
         self.Y = Y #length of the surface in y direction
         self.V0 = 1 #Velocity of incoming fluid
-        self.w = 1.1 #over relaxation factor
-        self.viscosity = .8 #viscosity of the fluid
+        self.w = 1.5 #over relaxation factor
+        self.viscosity = .1 #viscosity of the fluid
         #Plate boundaries
         self.PlateXFront = .2 * X
         self.PlateXBack = .5 * X
@@ -22,7 +22,7 @@ class Flow:
         self.hY = Y/(L)
         self.updatePsiMatrix = True #Whether w has been updates since last psi update
         self.solutionFound = False #True when within tolerance
-        self.maxIterations = 3 #Max iterations before giving up
+        self.maxIterations = 7 #Max iterations before giving up
 
     """Returns true if (l,j) is inside the plate"""
     def inPlate(self, l, j):
@@ -65,7 +65,6 @@ class Flow:
                 print("updateW")
                 self.updateW()
                 print("W: ", self.W)
-                self.flowGraph()
             self.updatePsiMatrix = not self.updatePsiMatrix #Change which we update next time
             i +=1
 
@@ -127,24 +126,24 @@ class Flow:
                         self.W[l][j] = 0
                     #Front of plate
                     elif((l*self.hX == self.PlateXFront) and (j*self.hY) < self.PlateYTop):
-                        self.W[l][j] = (-2/(self.hY*self.hY))*self.Psi[l][j-1]
+                        self.W[l][j] = (-2/(self.hY*self.hY))*self.Psi[l-1][j]
                         print("---")
                         print(l, ", ", j)
                         print("front of plate: ", self.W[l][j])
                     #Back of plate
                     elif((l*self.hX == self.PlateXBack) and (j*self.hY) < self.PlateYTop):
-                        self.W[l][j] = (-2/(self.hY*self.hY))*self.Psi[l][j+1]
+                        self.W[l][j] = (-2/(self.hY*self.hY))*self.Psi[l+1][j]
                         print("---")
                         print(l, ", ", j)
                         print("back of plate: ", self.W[l][j])
                     #Top of plate
                     elif((j*self.hY) == self.PlateYTop) and (l*self.hX >= self.PlateXFront) and (l*self.hX) <= self.PlateXBack:
-                        self.W[l][j] = (-2/(self.hX*self.hX))*self.Psi[l+1][j]
+                        self.W[l][j] = (-2/(self.hX*self.hX))*self.Psi[l][j+1]
                         print("---")
                         print(l, ", ", j)
                         print("top of plate: ", self.W[l][j])
                     else:
-                        partial = 1/(self.viscosity) * (self.PsiStencilDy(l,j) * self.WStencilDx(l,j) -
+                        partial = self.w/(4*self.viscosity) * (self.PsiStencilDy(l,j) * self.WStencilDx(l,j) -
                         (self.PsiStencilDx(l,j) * self.WStencilDy(l,j)))
                         squareStencil = self.WSquareStencil(l,j)
                         W = ((1-self.w)*self.W[l,j]) + (self.w)*squareStencil - partial
@@ -208,16 +207,16 @@ class Flow:
 
     """Graph contour lines of psi"""
     def flowGraph(self):
-        #conlines = np.linspace(0, 1, 20)
+        conlines = np.linspace(0, 1, 30)
         X,Y = self.getXYCoords(self.Psi)
-        plt.contour(X,Y,self.Psi, cmap = 'plasma')
+        plt.contour(X,Y,self.Psi, conlines, cmap = 'plasma')
         plt.xlabel("X")
         plt.ylabel("Y")
         plt.title(r"$\Psi$")
         plt.show()
 
 
-free = Flow(1, 1, 10)
+free = Flow(1, 1, 50)
 free.initialize()
 #free.updateWBoundary()
 #free.updatePsiBoundary()
