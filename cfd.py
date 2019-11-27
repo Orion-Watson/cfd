@@ -8,7 +8,7 @@ class Flow:
         self.Y = Y #length of the surface in y direction
         self.V0 = 1 #Velocity of incoming fluid
         self.w = 1.5 #over relaxation factor
-        self.viscosity = 0.1 #viscosity of the fluid
+        self.viscosity = 0.9 #viscosity of the fluid
         #Plate boundaries
         self.PlateXFront = (.3) * (L)
         self.PlateXBack = (.5) * (L)
@@ -22,7 +22,7 @@ class Flow:
         self.hY = Y/(L)
         self.updatePsiMatrix = True #Whether w has been updates since last psi update
         self.solutionFound = False #True when within tolerance
-        self.maxIterations = 1000 #Max iterations before giving up
+        self.maxIterations = 200 #Max iterations before giving up
 
     """Returns true if (l,j) is inside the plate"""
     def inPlate(self, l, j):
@@ -93,7 +93,7 @@ class Flow:
                     else:
                         W = self.W[l,j]
                         PsiSquareStencil = self.PsiSquareStencil(l,j)
-                        Psi = ((1-self.w) * self.Psi[l,j]) + (self.w * PsiSquareStencil) + ((self.w/4)*W*self.hX*self.hY)
+                        Psi = ((1-self.w) * self.Psi[l,j]) + (self.w * PsiSquareStencil) + (((self.w*self.hX*self.hY)/4)*W)
                         self.Psi[l,j] = Psi
                 else:
                     #set values inside plate to 0
@@ -129,10 +129,10 @@ class Flow:
                     else:
                         psiywx = self.PsiStencilDy(l,j) * self.WStencilDx(l,j)
                         psixwy = self.PsiStencilDx(l,j) * self.WStencilDy(l,j)
-                        partial = (1/self.viscosity)*(psiywx-psixwy)*self.hX*self.hY/4
+                        partial = ((self.hX*self.hY)/(self.viscosity*4))*(psiywx-psixwy)
                         avg = (self.w)*self.WSquareStencil(l,j)
                         factor = (1-self.w)*self.W[l,j]
-                        final = factor+avg+partial
+                        final = factor+avg-partial
                         self.W[l,j] = final
                 else:
                     self.W[l,j] = 0
@@ -196,20 +196,30 @@ class Flow:
                 cordsY[l,j] = y
         return cordsX, cordsY
 
+    def graph(self):
+        self.flowGraph()
+        self.vorticityGraph()
+        self.residualGraph()
+
     """Graph contour lines of psi"""
     def flowGraph(self):
         #graph stream function
+        plt.cla()
         conlines = np.linspace(0, 1, 50)
         X,Y = self.getXYCoords(self.Psi)
         plt.contour(X,Y,self.Psi, conlines, cmap = 'plasma')
-        plt.title(r"$\Psi$ (200 Iterations, N = 20, $\mu$=0.9)")
+        title = r"$\Psi$ (" + str(self.maxIterations) +  " Iterations, N = " + str(self.L) + r" $\mu$=" + str(self.viscosity) +  ")"
+        plt.title(title)
         plt.xlabel("X")
         plt.ylabel("Y")
         plt.show()
+
+    def vorticityGraph(self):
         #graph vorticity
         plt.cla()
         plt.imshow(self.W.T, cmap='viridis',origin = 'lower')
-        plt.title(r"$\omega$ (200 Iterations, N = 20, $\mu$=0.9)")
+        title = r"$\omega$ (" + str(self.maxIterations) +  " Iterations, N = " + str(self.L) + r" $\mu$=" + str(self.viscosity) +  ")"
+        plt.title(title)
         x_positions = np.linspace(0,len(self.W),5)
         x_labels = np.linspace(0,self.X,5)
         x_labels = [round(x,2) for x in x_labels]
@@ -220,17 +230,25 @@ class Flow:
         plt.yticks(y_positions, y_labels)
         plt.colorbar()
         plt.show()
+
+    def residualGraph(self):
         #graph risidual
         plt.cla()
         residualMatrix = self.getResidualMatrix()
+        x_positions = np.linspace(0,len(self.W),5)
+        x_labels = np.linspace(0,self.X,5)
+        x_labels = [round(x,2) for x in x_labels]
+        y_positions = x_positions
+        y_labels = np.linspace(0,self.Y,5)
+        y_labels = [round(y,2) for y in y_labels]
         plt.imshow(residualMatrix.T, cmap='viridis',origin = 'lower')
-        plt.title(r"$r_{\Psi}$ (200 Iterations, N = 20, $\mu$=0.9)")
+        title = r"$r_{\Psi}$ (" + str(self.maxIterations) +  " Iterations, N = " + str(self.L) + r" $\mu$=" + str(self.viscosity) +  ")"
+        plt.title(title)
         plt.xticks(x_positions, x_labels)
         plt.yticks(y_positions, y_labels)
         plt.colorbar()
         plt.show()
 
-
-free = Flow(1, 1, 100)
+free = Flow(1, 1, 30)
 free.solve()
-free.flowGraph()
+free.graph()
