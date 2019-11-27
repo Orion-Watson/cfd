@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 
 class Flow:
     def __init__(self, X, Y, L):
-        #print("L : ", L)
         self.L = L #highest index in matrix
         self.X = X #length of surface in x direction
         self.Y = Y #length of the surface in y direction
@@ -11,21 +10,19 @@ class Flow:
         self.w = 1.5 #over relaxation factor
         self.viscosity = 0.1 #viscosity of the fluid
         #Plate boundaries
-        self.PlateXFront = 3
-        self.PlateXBack = 5
-        self.PlateYTop = 3
+        self.PlateXFront = (.3) * (L)
+        self.PlateXBack = (.5) * (L)
+        self.PlateYTop = (.3) * (L)
         #Vorticity matrix
         self.W = np.zeros((L+1,L+1))
         #Stream function matrix
         self.Psi = np.zeros((L+1,L+1))
         #step sizes
         self.hX = X/(L)
-        #print("hX: ", self.hX)
         self.hY = Y/(L)
-        #print("hY: ", self.hY)
         self.updatePsiMatrix = True #Whether w has been updates since last psi update
         self.solutionFound = False #True when within tolerance
-        self.maxIterations = 100 #Max iterations before giving up
+        self.maxIterations = 200 #Max iterations before giving up
 
     """Returns true if (l,j) is inside the plate"""
     def inPlate(self, l, j):
@@ -56,18 +53,12 @@ class Flow:
     def solve(self):
         #initialize Psi matrix and W matrix
         self.initialize()
-        #self.flowGraph()
         i = 0
         while not self.solutionFound and i < self.maxIterations:
             if self.updatePsiMatrix:
-                #print("updatePsi")
                 self.updatePsi()
-                #print("Psi: ", self.Psi)
-                #self.flowGraph()
             else:
-                #print("updateW")
                 self.updateW()
-                print("W: ", self.W)
             self.updatePsiMatrix = not self.updatePsiMatrix #Change which we update next time
             i +=1
 
@@ -103,13 +94,6 @@ class Flow:
                         W = self.W[l,j]
                         PsiSquareStencil = self.PsiSquareStencil(l,j)
                         Psi = ((1-self.w) * self.Psi[l,j]) + (self.w * PsiSquareStencil) + ((self.w/4)*W*self.hX*self.hY)
-                        # print("-----")
-                        # print("(1-self.w) * self.Psi[l,j]): ", (1-self.w) * self.Psi[l,j])
-                        # print("(self.w * PsiSquareStencil): ", (self.w * PsiSquareStencil))
-                        # print("((self.w/4)*W*self.hX*self.hY): ", ((self.w/4)*W*self.hX*self.hY))
-                        # print("previous Psi: ", self.Psi[l,j])
-                        # print("Psi: ", Psi)
-                        # print("-----")
                         self.Psi[l,j] = Psi
                 else:
                     #set values inside plate to 0
@@ -120,8 +104,6 @@ class Flow:
     def updateW(self):
         for l in range(0, self.L+1): #y-ccordinate j/L
             for j in range(0, self.L+1): #x-coordinate l/L
-                #print("-----")
-                #print("x: ", l * self.hX, ' y: ', j * self.hY)
                 if not self.inPlate(l,j):
                     #Side opposite plate
                     if(j == self.L):
@@ -138,21 +120,12 @@ class Flow:
                     #Front of plate
                     elif(l == self.PlateXFront) and (j < self.PlateYTop):
                         self.W[l][j] = (-2/(self.hY*self.hY))*self.Psi[l-1][j]
-                        #print("---")
-                        #print(l, ", ", j)
-                        #print("front of plate: ", self.W[l][j])
                     #Back of plate
                     elif((l == self.PlateXBack) and (j) < self.PlateYTop):
                         self.W[l][j] = (-2/(self.hY*self.hY))*self.Psi[l+1][j]
-                        #print("---")
-                        #print(l, ", ", j)
-                        #print("back of plate: ", self.W[l][j])
                     #Top of plate
                     elif((j) == self.PlateYTop) and (l >= self.PlateXFront) and (l) <= self.PlateXBack:
                         self.W[l][j] = (-2/(self.hX*self.hX))*self.Psi[l][j+1]
-                        #print("---")
-                        #print(l, ", ", j)
-                        #print("top of plate: ", self.W[l][j])
                     else:
                         psiywx = self.PsiStencilDy(l,j) * self.WStencilDx(l,j)
                         psixwy = self.PsiStencilDx(l,j) * self.WStencilDy(l,j)
@@ -161,58 +134,55 @@ class Flow:
                         factor = (1-self.w)*self.W[l,j]
                         final = factor+avg+partial
                         self.W[l,j] = final
-                        print(partial)
-                        #print("internal point: ", self.W[l][j])
                 else:
                     self.W[l,j] = 0
 
     """Stencil for Laplacian of psi"""
     def PsiStencilLaPlaz(self,l,j):
-        if l != 0 and j != 0 and l !=  (self.L +1) and j != (self.L +1):
-            Psi = self.Psi[l,j]
-            PsiSquareStencil = self.PsiSquareStencil(l,j)
-            stencil = -Psi + PsiSquareStencil
-            return stencil
+        Psi = self.Psi[l,j]
+        PsiSquareStencil = self.PsiSquareStencil(l,j)
+        stencil = (PsiSquareStencil - Psi)/(self.hX*self.hY)
+        return stencil
 
     def PsiSquareStencil(self,l,j):
-        if l != 0 and j != 0 and l !=  (self.L +1) and j != (self.L +1):
+        if l != 0 and j != 0 and l !=  (self.L) and j != (self.L):
             stencil = (1/4)*(self.Psi[l+1,j] + self.Psi[l-1,j] + self.Psi[l,j+1]+ self.Psi[l,j-1])
             return stencil
+        else:
+            return self.Psi[l,j]
 
     def WSquareStencil(self,l,j):
         if l != 0 and j != 0 and l !=  (self.L +1) and j != (self.L +1):
             stencil = (1/4)*(self.W[l+1,j] + self.W[l-1,j] + self.W[l,j+1]+ self.W[l,j-1])
             return stencil
-        else:
-            print("error 238984")
 
     def PsiStencilDy(self,l,j):
         if l != 0 and j != 0 and l !=  (self.L +1) and j != (self.L +1):
             stencil = (self.Psi[l,j+1] - self.Psi[l,j-1])/(2*self.hY)
             return stencil
-        else:
-            print("error 983470294")
 
     def PsiStencilDx(self,l,j):
         if l != 0 and j != 0 and l !=  (self.L +1) and j != (self.L +1):
             stencil = (self.Psi[l+1,j] - self.Psi[l-1,j]) /(2*self.hX)
             return stencil
-        else:
-            print("error 123789293")
 
     def WStencilDy(self,l,j):
         if l != 0 and j != 0 and l !=  (self.L +1) and j != (self.L +1):
             stencil = (self.W[l,j+1] - self.W[l,j-1])/(2*self.hY)
             return stencil
-        else:
-            print("error 19804704")
 
     def WStencilDx(self,l,j):
         if l != 0 and j != 0 and l !=  (self.L +1) and j != (self.L +1):
             stencil = (self.W[l+1,j] - self.W[l-1,j])/(2*self.hX)
             return stencil
-        else:
-            print("error 2087948")
+
+    def getResidualMatrix(self):
+        residualMatrix = np.zeros((self.L+1,self.L+1))
+        for j in range(0, self.L+1):
+            for l in range(0, self.L+1):
+                residual = self.PsiStencilLaPlaz(l,j) + self.W[l,j]
+                residualMatrix[l,j] = residual
+        return residualMatrix
 
     """Compute X and Y coordinates"""
     def getXYCoords(self,A):
@@ -224,21 +194,49 @@ class Flow:
                 y = (j/self.L)*self.Y
                 cordsX[l,j] = x
                 cordsY[l,j] = y
-
         return cordsX, cordsY
 
     """Graph contour lines of psi"""
     def flowGraph(self):
+        #graph stream function
         conlines = np.linspace(0, 1, 50)
         X,Y = self.getXYCoords(self.Psi)
         plt.contour(X,Y,self.Psi, conlines, cmap = 'plasma')
+        plt.title(r"$\Psi$ (200 Iterations, N = 20, $\mu$=0.9)")
         plt.xlabel("X")
         plt.ylabel("Y")
-        plt.title(r"$\Psi$")
+        plt.show()
+        #graph vorticity
+        plt.cla()
+        plt.imshow(self.W.T, cmap='viridis',origin = 'lower')
+        plt.title(r"$\omega$ (200 Iterations, N = 20, $\mu$=0.9)")
+        x_positions = np.arange(0,len(self.W)+1,4)
+        x_labels = x_positions * self.hX
+        x_labels = [round(x,2) for x in x_labels]
+        plt.xticks(x_positions, x_labels)
+        y_positions = x_positions
+        y_labels = y_positions * self.hY
+        y_labels = [round(y,2) for y in y_labels]
+        plt.yticks(y_positions, y_labels)
+        plt.colorbar()
+        plt.show()
+        #graph risidual
+        plt.cla()
+        residualMatrix = self.getResidualMatrix()
+        plt.imshow(residualMatrix.T, cmap='viridis',origin = 'lower')
+        plt.title(r"$r_{\Psi}$ (200 Iterations, N = 20, $\mu$=0.9)")
+        x_positions = np.arange(0,len(self.W)+1,4)
+        x_labels = x_positions * self.hX
+        x_labels = [round(x,2) for x in x_labels]
+        plt.xticks(x_positions, x_labels)
+        y_positions = x_positions
+        y_labels = y_positions * self.hY
+        y_labels = [round(y,2) for y in y_labels]
+        plt.yticks(y_positions, y_labels)
+        plt.colorbar()
         plt.show()
 
 
-free = Flow(1, 1, 10)
-
+free = Flow(1, 1, 20)
 free.solve()
 free.flowGraph()
