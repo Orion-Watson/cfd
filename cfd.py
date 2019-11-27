@@ -22,7 +22,7 @@ class Flow:
         self.hY = Y/(L)
         self.updatePsiMatrix = True #Whether w has been updates since last psi update
         self.solutionFound = False #True when within tolerance
-        self.maxIterations = 200 #Max iterations before giving up
+        self.maxIterations = 1000 #Max iterations before giving up
 
     """Returns true if (l,j) is inside the plate"""
     def inPlate(self, l, j):
@@ -210,12 +210,12 @@ class Flow:
         plt.cla()
         plt.imshow(self.W.T, cmap='viridis',origin = 'lower')
         plt.title(r"$\omega$ (200 Iterations, N = 20, $\mu$=0.9)")
-        x_positions = np.arange(0,len(self.W)+1,4)
-        x_labels = x_positions * self.hX
+        x_positions = np.linspace(0,len(self.W),5)
+        x_labels = np.linspace(0,self.X,5)
         x_labels = [round(x,2) for x in x_labels]
         plt.xticks(x_positions, x_labels)
         y_positions = x_positions
-        y_labels = y_positions * self.hY
+        y_labels = np.linspace(0,self.Y,5)
         y_labels = [round(y,2) for y in y_labels]
         plt.yticks(y_positions, y_labels)
         plt.colorbar()
@@ -225,18 +225,12 @@ class Flow:
         residualMatrix = self.getResidualMatrix()
         plt.imshow(residualMatrix.T, cmap='viridis',origin = 'lower')
         plt.title(r"$r_{\Psi}$ (200 Iterations, N = 20, $\mu$=0.9)")
-        x_positions = np.arange(0,len(self.W)+1,4)
-        x_labels = x_positions * self.hX
-        x_labels = [round(x,2) for x in x_labels]
         plt.xticks(x_positions, x_labels)
-        y_positions = x_positions
-        y_labels = y_positions * self.hY
-        y_labels = [round(y,2) for y in y_labels]
         plt.yticks(y_positions, y_labels)
         plt.colorbar()
         plt.show()
 
 
-free = Flow(1, 1, 20)
+free = Flow(1, 1, 100)
 free.solve()
 free.flowGraph()
