@@ -299,7 +299,7 @@ class Flow:
         #graph risidual norm
         plt.cla()
         plt.plot(self.residualNorms,label="norm")
-        title = r"$R_{\Psi}$ (" + str(self.maxIterations) +  " Iterations, N = " + str(self.L) + r" $\mu$=" + str(self.viscosity) +  "w=" + self.w + ")"
+        title = r"$R_{\Psi}$ (" + str(self.maxIterations) +  " Iterations, N = " + str(self.L) + r" $\mu$=" + str(self.viscosity) +  " w=" + str(self.w) + " )"
         plt.title(title)
         plt.xlabel("Iteration")
         plt.ylabel(r"$R_{\Psi}$")
