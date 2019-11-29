@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 
 class Flow:
     def __init__(self, X, Y, L):
@@ -22,7 +23,8 @@ class Flow:
         self.hY = Y/(L)
         self.updatePsiMatrix = True #Whether w has been updates since last psi update
         self.solutionFound = False #True when within tolerance
-        self.maxIterations = 200 #Max iterations before giving up
+        self.maxIterations = 100 #Max iterations before giving up
+        self.residualNorms = []
 
     """Returns true if (l,j) is inside the plate"""
     def inPlate(self, l, j):
@@ -60,6 +62,7 @@ class Flow:
             else:
                 self.updateW()
             self.updatePsiMatrix = not self.updatePsiMatrix #Change which we update next time
+            self.residualNorms += [self.getResidualNorm()]
             i +=1
 
     """ Updates Psi matrix by calling functions to update Psi internal points
@@ -144,40 +147,39 @@ class Flow:
         constant = 4
         if l != 0 and j != 0 and l !=  (self.L) and j != (self.L):
             PsiSquareStencil = (1/4)*(self.Psi[l+1,j] + self.Psi[l-1,j] + self.Psi[l,j+1]+ self.Psi[l,j-1])
-        elif (l == 0 or j == 0 or j == self.L ):
-            PsiSquareStencil = self.Psi[l,j]
+            stencil = constant*(PsiSquareStencil - Psi)/(self.hX*self.hY)
+            return stencil
         else:
-            up = 0
-            down = 0
-            left = 0
-            right = 0
-            try:
-                up = self.Psi[l,j+1]
-            except:
-                pass
-            try:
-                down = self.Psi[l,j-1]
-            except:
-                pass
-            try:
-                left = self.Psi[l-1,j]
-            except:
-                pass
-            try:
-                right = self.Psi[l+1,j]
-            except:
-                pass
-
-            vals = [up,down,left,right]
-            numNonZero = 0
-            for val in vals:
-                if val != 0:
-                    numNonZero += 1
-            PsiSquareStencil = sum(vals)/numNonZero
-            constant = numNonZero
-            print("constant: ", constant)
-        stencil = 4*(PsiSquareStencil - Psi)/(self.hX*self.hY)
-        return stencil
+        #     up = 0
+        #     down = 0
+        #     left = 0
+        #     right = 0
+        #     try:
+        #         up = self.Psi[l,j+1]
+        #     except:
+        #         pass
+        #     try:
+        #         down = self.Psi[l,j-1]
+        #     except:
+        #         pass
+        #     try:
+        #         left = self.Psi[l-1,j]
+        #     except:
+        #         pass
+        #     try:
+        #         right = self.Psi[l+1,j]
+        #     except:
+        #         pass
+        #
+        #     vals = [up,down,left,right]
+        #     numNonZero = 0
+        #     for val in vals:
+        #         if val != 0:
+        #             numNonZero += 1
+        #     PsiSquareStencil = sum(vals)/numNonZero
+        #     constant = numNonZero
+        # stencil = constant*(PsiSquareStencil - Psi)/(self.hX*self.hY)
+            return -self.W[l,j]
 
     def PsiSquareStencil(self,l,j):
         if l != 0 and j != 0 and l !=  (self.L) and j != (self.L):
@@ -213,14 +215,19 @@ class Flow:
         residualMatrix = np.zeros((self.L+1,self.L+1))
         for j in range(0, self.L+1):
             for l in range(0, self.L+1):
-                print("------------------")
-                print("x: ", l, " y: ", j)
-                print("LaPlaz: ", self.PsiStencilLaPlaz(l,j))
-                print("omega: ", self.W[l,j])
                 residual = self.PsiStencilLaPlaz(l,j) + self.W[l,j]
-                print("residual: ", residual)
                 residualMatrix[l,j] = residual
         return residualMatrix
+
+    def getResidualNorm(self):
+        residualMatrix = self.getResidualMatrix()
+        norm = 0
+        for j in range(0, self.L+1):
+            for l in range(0, self.L+1):
+                nij = (residualMatrix[l,j]**2)*(self.hX*self.hY)
+                norm += nij
+        norm = math.sqrt(norm)
+        return norm
 
     """Compute X and Y coordinates"""
     def getXYCoords(self,A):
@@ -238,6 +245,7 @@ class Flow:
         self.flowGraph()
         self.vorticityGraph()
         self.residualGraph()
+        self.normGraph()
 
     """Graph contour lines of psi"""
     def flowGraph(self):
@@ -285,6 +293,16 @@ class Flow:
         plt.xticks(x_positions, x_labels)
         plt.yticks(y_positions, y_labels)
         plt.colorbar()
+        plt.show()
+
+    def normGraph(self):
+        #graph risidual norm
+        plt.cla()
+        plt.plot(self.residualNorms,label="norm")
+        title = r"$R_{\Psi}$ (" + str(self.maxIterations) +  " Iterations, N = " + str(self.L) + r" $\mu$=" + str(self.viscosity) +  "w=" + self.w + ")"
+        plt.title(title)
+        plt.xlabel("Iteration")
+        plt.ylabel(r"$R_{\Psi}$")
         plt.show()
 
 free = Flow(1, 1, 30)
