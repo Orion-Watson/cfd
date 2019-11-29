@@ -23,7 +23,7 @@ class Flow:
         self.hY = Y/(L)
         self.updatePsiMatrix = True #Whether w has been updates since last psi update
         self.solutionFound = False #True when within tolerance
-        self.maxIterations = 100 #Max iterations before giving up
+        self.maxIterations = 200 #Max iterations before giving up
         self.residualNorms = []
 
     """Returns true if (l,j) is inside the plate"""
@@ -146,39 +146,13 @@ class Flow:
         PsiSquareStencil = 0
         constant = 4
         if l != 0 and j != 0 and l !=  (self.L) and j != (self.L):
-            PsiSquareStencil = (1/4)*(self.Psi[l+1,j] + self.Psi[l-1,j] + self.Psi[l,j+1]+ self.Psi[l,j-1])
-            stencil = constant*(PsiSquareStencil - Psi)/(self.hX*self.hY)
-            return stencil
+            if l >= self.PlateXFront and l <= self.PlateXBack and  j <= self.PlateYTop:
+                return -self.W[l,j]
+            else:
+                PsiSquareStencil = (1/4)*(self.Psi[l+1,j] + self.Psi[l-1,j] + self.Psi[l,j+1]+ self.Psi[l,j-1])
+                stencil = constant*(PsiSquareStencil - Psi)/(self.hX*self.hY)
+                return stencil
         else:
-        #     up = 0
-        #     down = 0
-        #     left = 0
-        #     right = 0
-        #     try:
-        #         up = self.Psi[l,j+1]
-        #     except:
-        #         pass
-        #     try:
-        #         down = self.Psi[l,j-1]
-        #     except:
-        #         pass
-        #     try:
-        #         left = self.Psi[l-1,j]
-        #     except:
-        #         pass
-        #     try:
-        #         right = self.Psi[l+1,j]
-        #     except:
-        #         pass
-        #
-        #     vals = [up,down,left,right]
-        #     numNonZero = 0
-        #     for val in vals:
-        #         if val != 0:
-        #             numNonZero += 1
-        #     PsiSquareStencil = sum(vals)/numNonZero
-        #     constant = numNonZero
-        # stencil = constant*(PsiSquareStencil - Psi)/(self.hX*self.hY)
             return -self.W[l,j]
 
     def PsiSquareStencil(self,l,j):
