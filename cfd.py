@@ -129,7 +129,7 @@ class Flow:
                     else:
                         psiywx = self.PsiStencilDy(l,j) * self.WStencilDx(l,j)
                         psixwy = self.PsiStencilDx(l,j) * self.WStencilDy(l,j)
-                        partial = ((self.hX*self.hY)/(self.viscosity*4))*(psiywx-psixwy)
+                        partial = ((self.w*self.hX*self.hY)/(self.viscosity*4))*(psiywx-psixwy)
                         avg = (self.w)*self.WSquareStencil(l,j)
                         factor = (1-self.w)*self.W[l,j]
                         final = factor+avg-partial
@@ -140,16 +140,49 @@ class Flow:
     """Stencil for Laplacian of psi"""
     def PsiStencilLaPlaz(self,l,j):
         Psi = self.Psi[l,j]
-        PsiSquareStencil = self.PsiSquareStencil(l,j)
-        stencil = (PsiSquareStencil - Psi)/(self.hX*self.hY)
+        PsiSquareStencil = 0
+        constant = 4
+        if l != 0 and j != 0 and l !=  (self.L) and j != (self.L):
+            PsiSquareStencil = (1/4)*(self.Psi[l+1,j] + self.Psi[l-1,j] + self.Psi[l,j+1]+ self.Psi[l,j-1])
+        elif (l == 0 or j == 0 or j == self.L ):
+            PsiSquareStencil = self.Psi[l,j]
+        else:
+            up = 0
+            down = 0
+            left = 0
+            right = 0
+            try:
+                up = self.Psi[l,j+1]
+            except:
+                pass
+            try:
+                down = self.Psi[l,j-1]
+            except:
+                pass
+            try:
+                left = self.Psi[l-1,j]
+            except:
+                pass
+            try:
+                right = self.Psi[l+1,j]
+            except:
+                pass
+
+            vals = [up,down,left,right]
+            numNonZero = 0
+            for val in vals:
+                if val != 0:
+                    numNonZero += 1
+            PsiSquareStencil = sum(vals)/numNonZero
+            constant = numNonZero
+            print("constant: ", constant)
+        stencil = 4*(PsiSquareStencil - Psi)/(self.hX*self.hY)
         return stencil
 
     def PsiSquareStencil(self,l,j):
         if l != 0 and j != 0 and l !=  (self.L) and j != (self.L):
             stencil = (1/4)*(self.Psi[l+1,j] + self.Psi[l-1,j] + self.Psi[l,j+1]+ self.Psi[l,j-1])
             return stencil
-        else:
-            return self.Psi[l,j]
 
     def WSquareStencil(self,l,j):
         if l != 0 and j != 0 and l !=  (self.L +1) and j != (self.L +1):
@@ -180,7 +213,12 @@ class Flow:
         residualMatrix = np.zeros((self.L+1,self.L+1))
         for j in range(0, self.L+1):
             for l in range(0, self.L+1):
+                print("------------------")
+                print("x: ", l, " y: ", j)
+                print("LaPlaz: ", self.PsiStencilLaPlaz(l,j))
+                print("omega: ", self.W[l,j])
                 residual = self.PsiStencilLaPlaz(l,j) + self.W[l,j]
+                print("residual: ", residual)
                 residualMatrix[l,j] = residual
         return residualMatrix
 
