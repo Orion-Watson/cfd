@@ -122,13 +122,13 @@ class Flow:
                         self.W[l][j] = 0
                     #Front of plate
                     elif(l == self.PlateXFront) and (j < self.PlateYTop):
-                        self.W[l][j] = (-2/(self.hY*self.hY))*self.Psi[l-1][j]
+                        self.W[l][j] = (-2/(self.hX*self.hX))*self.Psi[l-1][j]
                     #Back of plate
                     elif((l == self.PlateXBack) and (j) < self.PlateYTop):
-                        self.W[l][j] = (-2/(self.hY*self.hY))*self.Psi[l+1][j]
+                        self.W[l][j] = (-2/(self.hX*self.hX))*self.Psi[l+1][j]
                     #Top of plate
                     elif((j) == self.PlateYTop) and (l >= self.PlateXFront) and (l) <= self.PlateXBack:
-                        self.W[l][j] = (-2/(self.hX*self.hX))*self.Psi[l][j+1]
+                        self.W[l][j] = (-2/(self.hY*self.hY))*self.Psi[l][j+1]
                     else:
                         psiywx = self.PsiStencilDy(l,j) * self.WStencilDx(l,j)
                         psixwy = self.PsiStencilDx(l,j) * self.WStencilDy(l,j)
